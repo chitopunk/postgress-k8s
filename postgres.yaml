@@ -50,6 +50,11 @@ spec:
         ports:
         - containerPort: 5432
           name: db
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 5
+          periodSeconds: 10
         volumeMounts:
         - name: data-pvc-storage
           mountPath: /data
