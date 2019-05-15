@@ -43,8 +43,8 @@ spec:
             secretKeyRef:
               name: db-secret
               key: password
-        - name: POSTGRES_DB
-          value: WORKSHOP
+              #- name: POSTGRES_DB
+              #value: WORKSHOP
         - name: PGDATA
           value: /data
         ports:
@@ -53,11 +53,17 @@ spec:
         volumeMounts:
         - name: data-pvc-storage
           mountPath: /data
+        - name: init-db-sql
+          mountPath: /docker-entrypoint-initdb.d
       volumes:
-      - persistentVolumeClaim:
+      - name: data-pvc-storage
+        persistentVolumeClaim:
           claimName: data-pvc-claim
-        name: data-pvc-storage
+      - name: init-db-sql
+        configMap:
+          name: init-db-sql
 ---
+apiVersion: v1
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -77,3 +83,20 @@ type: Opaque
 data:
   username: cG9zdGdyZXM=
   password: QXczczBtMw==
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-db-sql
+data:
+  init-db.sql: |
+    CREATE database WORKSHOP;
+    grant all privileges on database WORKSHOP to postgres;
+    CREATE TABLE account(
+      user_id serial PRIMARY KEY,
+      username VARCHAR (50) UNIQUE NOT NULL,
+      password VARCHAR (50) NOT NULL,
+      email VARCHAR (355) UNIQUE NOT NULL,
+      created_on TIMESTAMP NOT NULL,
+      last_login TIMESTAMP
+    );
