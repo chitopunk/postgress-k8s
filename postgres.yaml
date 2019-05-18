@@ -1,7 +1,13 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: postgres
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: postgres
+  namespace: postgres
   labels:
     app: postgres
 spec:
@@ -15,6 +21,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: postgres
   name: db-deployment
   labels:
     app: postgres
@@ -73,6 +80,7 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: data-pvc-claim
+  namespace: postgres
 spec:
   accessModes:
     - ReadWriteOnce
@@ -84,6 +92,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: db-secret
+  namespace: postgres
 type: Opaque
 data:
   username: cG9zdGdyZXM=
@@ -93,6 +102,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: init-db-sql
+  namespace: postgres
 data:
   init-db.sql: |
     CREATE database WORKSHOP;
@@ -105,3 +115,39 @@ data:
       created_on TIMESTAMP NOT NULL,
       last_login TIMESTAMP
     );
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: monitor
+  name: monitor
+  namespace: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: monitor
+  strategy:
+    rollingUpdate:
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: monitor
+    spec:
+      containers:
+      - image: busybox
+        command: ["/bin/sh"]
+        args: ["-c","while nc -w 2 -vz postgres 5432; do sleep 5; done; sendmail -f monitor@k8s.io chitopunk@gmail.com -S smtp.mailgun.com:587 </dev/null && exit 1"]
+        imagePullPolicy: Always
+        name: monitor
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
